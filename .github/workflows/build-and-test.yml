@@ -1,0 +1,68 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ develop, main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Simulator Service
+      run: |
+        cd simulator-service
+        docker build -t arealis-simulator .
+        
+    - name: Build Ingest Service
+      run: |
+        cd ingest-service
+        docker build -t arealis-ingest .
+        
+    - name: Build Recon Service
+      run: |
+        cd recon-service
+        docker build -t arealis-recon .
+        
+    - name: Build Journal Service
+      run: |
+        cd journal-service
+        docker build -t arealis-journal .
+        
+    - name: Build Evidence Service
+      run: |
+        cd evidence-service
+        docker build -t arealis-evidence .
+        
+    - name: Run Simulator Tests
+      run: |
+        cd simulator-service
+        docker run --rm arealis-simulator npm test
+        
+    - name: Run Ingest Tests
+      run: |
+        cd ingest-service
+        docker run --rm arealis-ingest npm test
+        
+    - name: Run Recon Tests
+      run: |
+        cd recon-service
+        docker run --rm arealis-recon python -m pytest tests/
+        
+    - name: Run Journal Tests
+      run: |
+        cd journal-service
+        docker run --rm arealis-journal python -m pytest tests/
+        
+    - name: Run Evidence Tests
+      run: |
+        cd evidence-service
+        docker run --rm arealis-evidence npm test

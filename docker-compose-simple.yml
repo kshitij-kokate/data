@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # Redis for message broker
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Simulator Service (Node.js)
+  simulator:
+    build: ./simulator-service
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - shared_data:/app/data
+    depends_on:
+      - redis
+
+  # Ingest Service (Node.js)
+  ingest-api:
+    build: ./ingest-service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - shared_data:/app/data
+    depends_on:
+      - redis
+
+  # Evidence Store (Node.js)
+  evidence-store:
+    build: ./evidence-service
+    ports:
+      - "8080:8080"
+    volumes:
+      - shared_data:/app/data
+
+volumes:
+  redis_data:
+  shared_data:
+

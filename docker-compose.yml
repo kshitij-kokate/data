@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  # Redis for message broker and caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Rail Statement Simulator
+  simulator:
+    build: ./simulator-service
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - shared_data:/app/data
+    depends_on:
+      - redis
+
+  # Ingest Pipeline API
+  ingest-api:
+    build: ./ingest-service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - shared_data:/app/data
+    depends_on:
+      - redis
+
+  # Reconciliation Engine
+  recon-engine:
+    build: ./recon-service
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - shared_data:/app/data
+    depends_on:
+      - redis
+
+  # Journal Generator
+  journal-generator:
+    build: ./journal-service
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - shared_data:/app/data
+    depends_on:
+      - redis
+
+  # Evidence Store
+  evidence-store:
+    build: ./evidence-service
+    ports:
+      - "8080:8080"
+    volumes:
+      - shared_data:/app/data
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+
+volumes:
+  redis_data:
+  shared_data:
+  prometheus_data:
+  grafana_data:
